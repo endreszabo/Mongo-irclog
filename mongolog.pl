@@ -2,12 +2,12 @@ use strict;
 use vars qw($VERSION %IRSSI);
 use Irssi;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 %IRSSI = (
 	name        => 'mongolog',
 	authors     => 'Endre Szabo',
 	contact     => 'irssi@end.re',
-	description => 'This script logs/stores events to MondoDB.',
+	description => 'This script logs/stores events to MongoDB.',
 	license     => 'GPL',
 );
 
@@ -84,6 +84,12 @@ sub store_log(@) {
 		$log{nick}=$log{nick_rec}->{nick};
 		delete($log{nick_rec});
 	}
+	if(defined($log{query_rec})) {
+		$log{nick}=$log{query_rec}->{name};
+		$log{server}=$log{query_rec}->{server_tag};
+		$log{address}=$log{query_rec}->{address};
+		delete($log{query_rec});
+	}
 	if($conn and $db and $coll and $id=$coll->insert(\%log)) {
 		Irssi::print("Stored log into db with _id '$id'.") if $debug;
 	} else {
@@ -100,8 +106,15 @@ sub mongodb_connect{
 			query_timeout	=> Irssi::settings_get_int('mongolog_db_query_timeout'),
 		);
 	}; warn $@ if $@;
-	return 0 if !$conn;
-	$conn->authenticate($dbname, Irssi::settings_get_str('mongolog_db_username'), Irssi::settings_get_str('mongolog_db_password'));
+	if(!$conn) {
+		Irssi::print('Could not connect to db at '.Irssi::settings_get_str('mongolog_db_host'));
+		return 0;
+	}
+	$conn->authenticate(
+		Irssi::settings_get_str('mongolog_db_name'),
+		Irssi::settings_get_str('mongolog_db_username'),
+		Irssi::settings_get_str('mongolog_db_password')
+	);
 	$db=Irssi::settings_get_str('mongolog_db_name');
 	$db=$conn->$db;
 	$coll=Irssi::settings_get_str('mongolog_db_collection');
